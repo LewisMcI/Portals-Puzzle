@@ -9,10 +9,7 @@ APortal::APortal()
  	// Set this actor to call Tick() every frame.
 	PrimaryActorTick.bCanEverTick = true;
 
-    // Create a cube mesh component
-    planeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("planeMesh"));
-    RootComponent = planeMesh;
-
+	Setup();
 }
 
 // Called when the game starts or when spawned
