@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/ArrowComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "PortalVisuals.h"
+
 #include "Portal.generated.h"
 
 UCLASS()
@@ -29,23 +32,9 @@ private:
         frameMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("frameMesh"));
         RootComponent = frameMesh;
 
-        // Set the default static mesh for the frame mesh
-        static ConstructorHelpers::FObjectFinder<UStaticMesh> FrameMeshAsset(TEXT("/Game/Portals/Portal_Frame"));
-        if (FrameMeshAsset.Succeeded())
-        {
-            frameMesh->SetStaticMesh(FrameMeshAsset.Object);
-        }
-
         // Create the frame mesh component and attach it to the plane mesh
         planeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("planeMesh"));
         planeMesh->SetupAttachment(frameMesh);
-
-        // Set the default static mesh for the plane mesh
-        static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneMeshAsset(TEXT("/Game/Portals/Plane"));
-        if (PlaneMeshAsset.Succeeded())
-        {
-            planeMesh->SetStaticMesh(PlaneMeshAsset.Object);
-        }
 
         // Create an arrow component
         forwardDirection = CreateDefaultSubobject<UArrowComponent>(TEXT("forwardDirection"));
@@ -57,8 +46,17 @@ private:
 
         // Set the rotation of the arrow component to match the forward vector of the frame mesh
         forwardDirection->SetWorldRotation(ForwardVector.Rotation());
+
+        portalCamera = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("portalCamera"));
+        portalCamera->SetupAttachment(planeMesh);;
+
+        // Set the rotation of the arrow component to match the forward vector of the frame mesh
+        portalCamera->SetWorldRotation(ForwardVector.Rotation());
+
+        portalVisuals = new PortalVisuals(planeMesh);
 	}
-	
+    void UpdateSceneCapture();
+
 	UPROPERTY(EditAnywhere)
 	UStaticMeshComponent* planeMesh;
 
@@ -68,4 +66,14 @@ private:
 	UPROPERTY(EditAnywhere)
 	UArrowComponent* forwardDirection;
 
+    UPROPERTY(EditAnywhere)
+    UMaterial* portalMat;
+
+    UPROPERTY(EditAnywhere)
+    APortal* otherPortal;
+
+    UPROPERTY(EditAnywhere)
+    USceneCaptureComponent2D* portalCamera;
+
+    PortalVisuals* portalVisuals;
 };
