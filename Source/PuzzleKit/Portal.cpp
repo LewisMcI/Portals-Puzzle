@@ -2,7 +2,6 @@
 
 
 #include "Portal.h"
-#include <Kismet/GameplayStatics.h>
 
 // Sets default values
 APortal::APortal()
@@ -17,8 +16,7 @@ APortal::APortal()
 void APortal::BeginPlay()
 {
 	Super::BeginPlay();
-
-	portalVisuals->BeginPlay(portalMat, otherPortal->portalCamera);
+	BeginVisuals();
 }
 
 // Called every frame
@@ -31,30 +29,10 @@ void APortal::Tick(float DeltaTime)
 
 void APortal::UpdateSceneCapture()
 {
-	// GetActorTransform
-	FTransform portalTransform = GetActorTransform();
-	// Set Scale
-	FVector scale = portalTransform.GetScale3D();
-	scale.Y *= -1; scale.Z *= -1;
-	// MakeTransform
-	portalTransform.SetScale3D(scale);
-
-	// GetPlayerCameraManager
-	APlayerCameraManager* CameraManager = Cast<APlayerCameraManager>(UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0));
-	if (!CameraManager)
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("CameraManager not found"));
-
-	// InverseTransformLocation
-	FVector inversedLocation = portalTransform.InverseTransformPosition(CameraManager->GetCameraLocation());
-
-	// Linked Portal & GetActorTransform
-	FTransform otherPortalTransform = otherPortal->GetTransform();
-
-	// TransformLocation
-	FVector newLocation = otherPortalTransform.TransformPosition(inversedLocation);
-
+	FVector newLocation = SceneCaptureUpdateLocation();
+	FRotator newRotation = SceneCaptureUpdateRotation();
 	// SetWorldLocationAndRotation
-	otherPortal->portalCamera->SetWorldLocationAndRotation(newLocation, FRotator::ZeroRotator);
+	otherPortal->portalCamera->SetWorldLocationAndRotation(newLocation, newRotation);
 
 }
 
