@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+	// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Portal.h"
@@ -16,6 +16,7 @@ APortal::APortal()
 void APortal::BeginPlay()
 {
 	Super::BeginPlay();
+	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
 	BeginVisuals();
 }
 
@@ -25,6 +26,7 @@ void APortal::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	UpdateSceneCapture();
+	CheckViewportSize();
 }
 
 void APortal::UpdateSceneCapture()
