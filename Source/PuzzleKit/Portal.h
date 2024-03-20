@@ -165,37 +165,25 @@ private:
     }
     FRotator SceneCaptureUpdateRotation() {
         // Get Camera Manager
-        APlayerCameraManager* cameraManager = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0);
+        APlayerCameraManager* camMan = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0);
         // Get transform of player camera manager
-        USceneComponent* camTransform = cameraManager->GetTransformComponent();
-        FRotator camRotation = camTransform->GetComponentRotation();
+        USceneComponent* camManTransform = camMan->GetTransformComponent();
+        FRotator camRotation = camManTransform->GetComponentRotation();
         
         // Break Rot into Axes
-        FVector x; FVector y; FVector z;
+        FVector x = FVector::ZeroVector; FVector y = FVector::ZeroVector; FVector z = FVector::ZeroVector;
         UKismetMathLibrary::BreakRotIntoAxes(camRotation, x, y, z);
 
-        FTransform actorTransform = GetActorTransform();
+        FTransform portalTransform = GetActorTransform();
         FTransform otherPortalTransform = otherPortal->GetActorTransform();
 
         // Forward
-        FVector inverseForward = UKismetMathLibrary::InverseTransformDirection(actorTransform, x);
+        FVector inverseForward = UKismetMathLibrary::InverseTransformDirection(portalTransform, x);
         FVector mirrorForwardX = UKismetMathLibrary::MirrorVectorByNormal(inverseForward, FVector(1.0f, 0.0f, 0.0f));
         FVector mirrorForwardY = UKismetMathLibrary::MirrorVectorByNormal(mirrorForwardX, FVector(0.0f, 1.0f, 0.0f));
         FVector forward = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorForwardY);
 
-        // Right
-        FVector inverseRight = UKismetMathLibrary::InverseTransformDirection(actorTransform, y);
-        FVector mirrorRightX = UKismetMathLibrary::MirrorVectorByNormal(inverseRight, FVector(1.0f, 0.0f, 0.0f));
-        FVector mirrorRightY = UKismetMathLibrary::MirrorVectorByNormal(mirrorRightX, FVector(0.0f, 1.0f, 0.0f));
-        FVector right = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorRightY);
-        
-        // Up
-        FVector inverseUp = UKismetMathLibrary::InverseTransformDirection(actorTransform, z);
-        FVector mirrorUpX = UKismetMathLibrary::MirrorVectorByNormal(inverseUp, FVector(1.0f, 0.0f, 0.0f));
-        FVector mirrorUpY = UKismetMathLibrary::MirrorVectorByNormal(mirrorUpX, FVector(0.0f, 1.0f, 0.0f));
-        FVector up = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorUpY);
-
-        return UKismetMathLibrary::MakeRotationFromAxes(forward, right, up);
+        return UKismetMathLibrary::MakeRotationFromAxes(forward, FVector::ZeroVector, FVector::ZeroVector);
         
     }
 	UMaterialInstanceDynamic* portalMatInstance;
