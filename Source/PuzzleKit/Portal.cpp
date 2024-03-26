@@ -9,6 +9,7 @@ APortal::APortal()
 
 void APortal::BeginPlay()
 {
+	UKismetSystemLibrary::Delay(GetWorld(), 0.1f, FLatentActionInfo());
 	Super::BeginPlay();
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
 	BeginVisuals();
@@ -20,6 +21,7 @@ void APortal::Tick(float DeltaTime)
 
 	UpdateSceneCapture();
 	CheckViewportSize();
+	ShouldTeleport();
 }
 
 void APortal::UpdateSceneCapture()
@@ -28,6 +30,5 @@ void APortal::UpdateSceneCapture()
 	FRotator newRotation = SceneCaptureUpdateRotation();
 
 	otherPortal->portalCamera->SetWorldLocationAndRotation(newLocation, newRotation);
-
 }
 

@@ -16,6 +16,8 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include <Kismet/KismetMaterialLibrary.h>
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "GameFramework/Character.h" 
+#include "GameFramework/PawnMovementComponent.h"
 
 #include "Portal.generated.h"
 
@@ -59,6 +61,7 @@ private:
         objectDetection = CreateDefaultSubobject<UBoxComponent>(TEXT("objectDetection"));
 
         RootComponent = root;
+        objectDetection->SetupAttachment(root);
         frameMesh->SetupAttachment(root);
         forwardDirection->SetupAttachment(root);
         planeMesh->SetupAttachment(root);
@@ -66,6 +69,49 @@ private:
 
         // Set the rotation of the arrow component to match the forward vector of the frame mesh
         portalCamera->SetWorldRotation(ForwardVector.Rotation());
+    }
+    FVector InvertLocation(FVector lastLocation) {
+        // Set Scale
+        FVector location; FRotator rotation; FVector scale;
+        UKismetMathLibrary::BreakTransform(GetActorTransform(), location, rotation, scale);
+
+        float x; float y; float z;
+        UKismetMathLibrary::BreakVector(scale, x, y, z);
+        FVector newScale = UKismetMathLibrary::MakeVector(x * -1, y * -1, z);
+
+        FTransform newTransform = UKismetMathLibrary::MakeTransform(location, rotation, newScale);
+
+        FVector inverseLocation = UKismetMathLibrary::InverseTransformLocation(newTransform, lastLocation);
+
+        return UKismetMathLibrary::TransformLocation(otherPortal->GetActorTransform(), inverseLocation);
+    }
+    FRotator InvertRotation(FRotator rotation) {
+        // Break Rot into Axes
+        FVector x = FVector::ZeroVector; FVector y = FVector::ZeroVector; FVector z = FVector::ZeroVector;
+        UKismetMathLibrary::BreakRotIntoAxes(rotation, x, y, z);
+
+        FTransform portalTransform = GetActorTransform();
+        FTransform otherPortalTransform = otherPortal->GetActorTransform();
+
+        // Forward
+        FVector inverseForward = UKismetMathLibrary::InverseTransformDirection(portalTransform, x);
+        FVector mirrorForwardX = UKismetMathLibrary::MirrorVectorByNormal(inverseForward, FVector(1.0f, 0.0f, 0.0f));
+        FVector mirrorForwardY = UKismetMathLibrary::MirrorVectorByNormal(mirrorForwardX, FVector(0.0f, 1.0f, 0.0f));
+        FVector forward = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorForwardY);
+
+        // Right
+        FVector inverseRight = UKismetMathLibrary::InverseTransformDirection(portalTransform, y);
+        FVector mirrorRightX = UKismetMathLibrary::MirrorVectorByNormal(inverseRight, FVector(1.0f, 0.0f, 0.0f));
+        FVector mirrorRightY = UKismetMathLibrary::MirrorVectorByNormal(mirrorRightX, FVector(0.0f, 1.0f, 0.0f));
+        FVector right = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorRightY);
+
+        // Up
+        FVector inverseUp = UKismetMathLibrary::InverseTransformDirection(portalTransform, z);
+        FVector mirrorUpX = UKismetMathLibrary::MirrorVectorByNormal(inverseUp, FVector(1.0f, 0.0f, 0.0f));
+        FVector mirrorUpY = UKismetMathLibrary::MirrorVectorByNormal(mirrorUpX, FVector(0.0f, 1.0f, 0.0f));
+        FVector up = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorUpY);
+
+        return UKismetMathLibrary::MakeRotationFromAxes(forward, right, up);
     }
 
     UPROPERTY(EditAnywhere)
@@ -126,9 +172,7 @@ private:
         }
     }
     void BeginVisuals() {
-
         // Create New Mat Instance
-
         portalMatInstance = UKismetMaterialLibrary::CreateDynamicMaterialInstance(GetWorld(), portalMat);
 
         planeMesh->SetMaterial(0, portalMatInstance);
@@ -147,52 +191,104 @@ private:
         otherPortal->portalCamera->TextureTarget = portalRT;
 
         SetClipPlanes();
+
+        FVector offset = forwardDirection->GetForwardVector() * offsetAmount;
+        FLinearColor colour = UKismetMathLibrary::MakeColor(offset.X, offset.Y, offset.Z, 1.0f);
+
+        portalMatInstance->SetVectorParameterValue("OffsetDistance", colour);
     }
     FVector SceneCaptureUpdateLocation() {
-        // Set Scale
-        FVector location; FRotator rotation; FVector scale;
-        UKismetMathLibrary::BreakTransform(GetActorTransform(), location, rotation, scale);
-
-        float x; float y; float z;
-        UKismetMathLibrary::BreakVector(scale, x, y, z);
-        FVector newScale = UKismetMathLibrary::MakeVector(x*-1, y*-1, z);
-
-        FTransform newTransform = UKismetMathLibrary::MakeTransform(location, rotation, newScale);
-
-        APlayerCameraManager* camMan = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0);
-        USceneComponent* camManTransform = camMan->GetTransformComponent();
-        FVector inverseLocation = UKismetMathLibrary::InverseTransformLocation(newTransform, camManTransform->GetComponentLocation());
-
-        return UKismetMathLibrary::TransformLocation(otherPortal->GetActorTransform(), inverseLocation);
+        return InvertLocation(UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->GetCameraLocation());
     }
     FRotator SceneCaptureUpdateRotation() {
-        // Get Camera Manager
-        APlayerCameraManager* camMan = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0);
-        // Get transform of player camera manager
-        USceneComponent* camManTransform = camMan->GetTransformComponent();
-        FRotator camRotation = camManTransform->GetComponentRotation();
-        
-        // Break Rot into Axes
-        FVector x = FVector::ZeroVector; FVector y = FVector::ZeroVector; FVector z = FVector::ZeroVector;
-        UKismetMathLibrary::BreakRotIntoAxes(camRotation, x, y, z);
-
-        FTransform portalTransform = GetActorTransform();
-        FTransform otherPortalTransform = otherPortal->GetActorTransform();
-
-        // Forward
-        FVector inverseForward = UKismetMathLibrary::InverseTransformDirection(portalTransform, x);
-        FVector mirrorForwardX = UKismetMathLibrary::MirrorVectorByNormal(inverseForward, FVector(1.0f, 0.0f, 0.0f));
-        FVector mirrorForwardY = UKismetMathLibrary::MirrorVectorByNormal(mirrorForwardX, FVector(0.0f, 1.0f, 0.0f));
-        FVector forward = UKismetMathLibrary::TransformDirection(otherPortalTransform, mirrorForwardY);
-
-        return UKismetMathLibrary::MakeRotationFromAxes(forward, FVector::ZeroVector, FVector::ZeroVector);
+        return InvertRotation(UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->GetCameraRotation());
         
     }
+
     void UpdateSceneCapture();
 
 	UMaterialInstanceDynamic* portalMatInstance;
 	UTextureRenderTarget2D* portalRT;
 
     /* Teleportation*/
+    void ShouldTeleport() {
+        TArray<AActor*> OverlappingActors;
+        
+        objectDetection->GetOverlappingActors(OverlappingActors, ACharacter::StaticClass());
 
+        for (AActor* Actor : OverlappingActors)
+        {
+            // For whatever reason I can't seem to include the BP_ThirdPersonCharacter.h, so this is my roundabout solution
+            FString ActorClassName = Actor->GetClass()->GetName();
+            // Player
+            if (FCString::Strcmp(*ActorClassName, TEXT("BP_ThirdPersonCharacter_C")) == 0)
+            {
+                APlayerCameraManager* camMan = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0);
+                FVector point = camMan->GetCameraLocation();
+                FVector portalLocation = GetActorLocation();
+                FVector portalNormal = forwardDirection->GetForwardVector();
+                if (IsPointCrossingPortal(point, portalLocation, portalNormal))
+                    TeleportCharacter();
+            }
+        }
+    }
+    void TeleportCharacter() {
+        APlayerController* playerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+        ACharacter* playerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
+
+        // Location
+        FVector newLocation = InvertLocation(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation());
+        
+        // Rotation
+        // Get Camera Manager
+        FRotator newRotation = InvertRotation(playerCharacter->GetActorRotation());
+
+        // Scale
+        FVector newScale = FVector(1.0f);
+
+        // New Actor Transform
+        FTransform newTransform = UKismetMathLibrary::MakeTransform(newLocation, newRotation, newScale);
+        playerCharacter->SetActorTransform(newTransform);
+
+        // Control Rotation
+        FRotator controlRotation = InvertRotation(playerController->GetControlRotation());;
+        playerController->SetControlRotation(controlRotation);
+        
+        // Handle Momentum
+        UPawnMovementComponent* movement = playerCharacter->GetMovementComponent();
+        movement->Velocity = UpdateVelocity(movement->Velocity);
+
+        UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->SetGameCameraCutThisFrame();
+
+        UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Character"));
+    }
+    FVector UpdateVelocity(FVector velocity) {
+        FVector location = UKismetMathLibrary::InverseTransformDirection(GetActorTransform(), UKismetMathLibrary::Vector_Normal2D(velocity, 0.0001));
+        FVector mirrorX = UKismetMathLibrary::MirrorVectorByNormal(location, FVector(1.0f, 0.0f, 0.0f));
+        FVector mirrorY = UKismetMathLibrary::MirrorVectorByNormal(mirrorX, FVector(0.0f, 1.0f, 0.0f));
+
+        FVector direction = UKismetMathLibrary::TransformDirection(otherPortal->GetActorTransform(), mirrorY);
+        
+        return direction * velocity.Length();
+    }
+    bool IsPointCrossingPortal(FVector point, FVector portalLocation, FVector portalNormal) {
+        FVector distance = point - portalLocation;
+        double angle = UKismetMathLibrary::Dot_VectorVector(portalNormal, distance);
+
+        bool isInFront = angle >= 0;
+
+        FPlane portalPlane = UKismetMathLibrary::MakePlaneFromPointAndNormal(portalLocation, portalNormal);
+        float t; FVector intersection;
+        bool isIntersect = UKismetMathLibrary::LinePlaneIntersection(lastPosition, point, portalPlane, t, intersection);
+        
+        bool isCrossing = isIntersect && !isInFront && lastInFront;
+        lastInFront = isInFront;
+        lastPosition = point;
+
+        return isCrossing;
+    }
+
+    FVector lastPosition;
+    bool lastInFront;
+    float offsetAmount = -6.0f;
 };
