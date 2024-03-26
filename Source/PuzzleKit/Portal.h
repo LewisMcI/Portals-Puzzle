@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/ArrowComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Components/BoxComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/GameViewportClient.h"
@@ -24,18 +25,18 @@ class PUZZLEKIT_API APortal : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	APortal();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
 private:
-	void Setup() {
+    
+    /* Portal Setup */
+    void Setup() {
         root = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneRoot"));
 
         // Create the plane mesh component
@@ -54,7 +55,9 @@ private:
         forwardDirection->SetWorldRotation(ForwardVector.Rotation());
 
         portalCamera = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("portalCamera"));
-        
+
+        objectDetection = CreateDefaultSubobject<UBoxComponent>(TEXT("objectDetection"));
+
         RootComponent = root;
         frameMesh->SetupAttachment(root);
         forwardDirection->SetupAttachment(root);
@@ -63,31 +66,7 @@ private:
 
         // Set the rotation of the arrow component to match the forward vector of the frame mesh
         portalCamera->SetWorldRotation(ForwardVector.Rotation());
-	}
-    void BeginVisuals() {
-
-		// Create New Mat Instance
-        
-		portalMatInstance = UKismetMaterialLibrary::CreateDynamicMaterialInstance(GetWorld(), portalMat);
-
-		planeMesh->SetMaterial(0, portalMatInstance);
-
-        // Create render target
-        FVector2D viewportSize = UWidgetLayoutLibrary::GetViewportSize(GetWorld());
-
-        int32 truncX = UKismetMathLibrary::FTrunc(viewportSize.X);
-        int32 truncY = UKismetMathLibrary::FTrunc(viewportSize.Y);
-
-        portalRT = UKismetRenderingLibrary::CreateRenderTarget2D(GetWorld(), truncX, truncY);
-
-        // Setup Portal Mat
-        portalMatInstance->SetTextureParameterValue("Texture", portalRT);
-
-        otherPortal->portalCamera->TextureTarget = portalRT;
-        
-        SetClipPlanes();
     }
-    void UpdateSceneCapture();
 
     UPROPERTY(EditAnywhere)
     USceneComponent* root;
@@ -110,9 +89,10 @@ private:
     UPROPERTY(EditAnywhere)
     USceneCaptureComponent2D* portalCamera;
 
-	// Visuals
+    UPROPERTY(EditAnywhere)
+    UBoxComponent* objectDetection;
 
-    // Setup Clip Planes
+	/* Visuals */
     void SetClipPlanes() {
         if (otherPortal->portalCamera == nullptr)
             return;
@@ -145,7 +125,29 @@ private:
             UKismetRenderingLibrary::ResizeRenderTarget2D(portalRT, truncX, truncY);
         }
     }
+    void BeginVisuals() {
 
+        // Create New Mat Instance
+
+        portalMatInstance = UKismetMaterialLibrary::CreateDynamicMaterialInstance(GetWorld(), portalMat);
+
+        planeMesh->SetMaterial(0, portalMatInstance);
+
+        // Create render target
+        FVector2D viewportSize = UWidgetLayoutLibrary::GetViewportSize(GetWorld());
+
+        int32 truncX = UKismetMathLibrary::FTrunc(viewportSize.X);
+        int32 truncY = UKismetMathLibrary::FTrunc(viewportSize.Y);
+
+        portalRT = UKismetRenderingLibrary::CreateRenderTarget2D(GetWorld(), truncX, truncY);
+
+        // Setup Portal Mat
+        portalMatInstance->SetTextureParameterValue("Texture", portalRT);
+
+        otherPortal->portalCamera->TextureTarget = portalRT;
+
+        SetClipPlanes();
+    }
     FVector SceneCaptureUpdateLocation() {
         // Set Scale
         FVector location; FRotator rotation; FVector scale;
@@ -186,6 +188,11 @@ private:
         return UKismetMathLibrary::MakeRotationFromAxes(forward, FVector::ZeroVector, FVector::ZeroVector);
         
     }
+    void UpdateSceneCapture();
+
 	UMaterialInstanceDynamic* portalMatInstance;
 	UTextureRenderTarget2D* portalRT;
+
+    /* Teleportation*/
+
 };
