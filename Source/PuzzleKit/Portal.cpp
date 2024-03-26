@@ -18,7 +18,7 @@ void APortal::BeginPlay()
 void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	//SceneCaptureUpdateRecursive(FVector::ZeroVector, FRotator::ZeroRotator);
 	UpdateSceneCapture();
 	CheckViewportSize();
 	ShouldTeleport();

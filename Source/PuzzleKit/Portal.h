@@ -204,7 +204,6 @@ private:
         return InvertRotation(UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->GetCameraRotation());
         
     }
-
     void UpdateSceneCapture();
 
 	UMaterialInstanceDynamic* portalMatInstance;
@@ -291,4 +290,45 @@ private:
     FVector lastPosition;
     bool lastInFront;
     float offsetAmount = -6.0f;
+
+    // Recursion
+
+    void SceneCaptureUpdateRecursive(FVector location, FRotator rotation) {
+        FVector tempLocation; FRotator tempRotation;
+        if (currentRecursion == 0) {
+            USceneComponent* camTransform = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->GetTransformComponent();
+            FVector camLocation = camTransform->GetComponentLocation();
+            tempLocation = InvertLocation(camLocation);
+            FRotator camRotation = camTransform->GetComponentRotation();
+            tempRotation = InvertRotation(camRotation);
+
+            currentRecursion++;
+
+            SceneCaptureUpdateRecursive(tempLocation, tempRotation);
+
+            otherPortal->portalCamera->SetWorldLocationAndRotation(tempLocation, tempRotation);
+            otherPortal->portalCamera->CaptureScene();
+            currentRecursion = 0;
+        }
+        else if (currentRecursion < maxRecursions) {
+            tempLocation = InvertLocation(location);
+            tempRotation = InvertRotation(rotation);
+            
+            currentRecursion++;
+
+            SceneCaptureUpdateRecursive(tempLocation, tempRotation);
+            
+            otherPortal->portalCamera->SetWorldLocationAndRotation(tempLocation, tempRotation);
+            otherPortal->portalCamera->CaptureScene();
+        }
+        else {
+            otherPortal->portalCamera->SetWorldLocationAndRotation(InvertLocation(location), InvertRotation(rotation));
+            planeMesh->SetVisibility(false);
+            otherPortal->portalCamera->CaptureScene();
+            planeMesh->SetVisibility(true);
+        }
+    }
+
+    int currentRecursion;
+    int maxRecursions = 1;
 };
