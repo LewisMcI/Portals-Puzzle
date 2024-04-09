@@ -66,7 +66,7 @@ private:
         forwardDirection->SetupAttachment(root);
         planeMesh->SetupAttachment(root);
         portalCamera->SetupAttachment(root);
-
+        
         // Set the rotation of the arrow component to match the forward vector of the frame mesh
         portalCamera->SetWorldRotation(ForwardVector.Rotation());
     }
@@ -213,12 +213,13 @@ private:
     void ShouldTeleport() {
         TArray<AActor*> OverlappingActors;
         
-        objectDetection->GetOverlappingActors(OverlappingActors, ACharacter::StaticClass());
+        objectDetection->GetOverlappingActors(OverlappingActors);
 
         for (AActor* Actor : OverlappingActors)
         {
             // For whatever reason I can't seem to include the BP_ThirdPersonCharacter.h, so this is my roundabout solution
             FString ActorClassName = Actor->GetClass()->GetName();
+            
             // Player
             if (FCString::Strcmp(*ActorClassName, TEXT("BP_ThirdPersonCharacter_C")) == 0)
             {
@@ -229,8 +230,46 @@ private:
                 if (IsPointCrossingPortal(point, portalLocation, portalNormal))
                     TeleportCharacter();
             }
+            if (FCString::Strcmp(*ActorClassName, TEXT("BP_Portal_C")) == 0)
+                continue;
+            UKismetSystemLibrary::PrintString(GetWorld(), ActorClassName);
+
+            if (FCString::Strcmp(*ActorClassName, TEXT("Interactable")) == 0)
+            {
+                TeleportObject(Actor);
+            }
         }
     }
+
+    void TeleportObject(AActor* actor) {
+        APlayerController* playerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+        ACharacter* playerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
+
+        // Location
+        FVector newLocation = InvertLocation(actor->GetActorLocation());
+
+        // Rotation
+        // Get Camera Manager
+        FRotator newRotation = InvertRotation(actor->GetActorRotation());
+
+        // Scale
+        FVector newScale = FVector(1.0f);
+
+        // New Actor Transform
+        FTransform newTransform = UKismetMathLibrary::MakeTransform(newLocation, newRotation, newScale);
+        actor->SetActorTransform(newTransform);
+
+        // Control Rotation
+        FRotator controlRotation = InvertRotation(playerController->GetControlRotation());;
+        actor->SetActorRotation(controlRotation);
+
+        // Handle Momentum
+        //FVector velocity = actor->GetVelocity();
+        //actor->Velocity = UpdateVelocity(movement->Velocity);
+
+        UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Object"));
+    }
+
     void TeleportCharacter() {
         APlayerController* playerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
         ACharacter* playerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
@@ -261,6 +300,7 @@ private:
 
         UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Character"));
     }
+
     FVector UpdateVelocity(FVector velocity) {
         FVector location = UKismetMathLibrary::InverseTransformDirection(GetActorTransform(), UKismetMathLibrary::Vector_Normal2D(velocity, 0.0001));
         FVector mirrorX = UKismetMathLibrary::MirrorVectorByNormal(location, FVector(1.0f, 0.0f, 0.0f));
