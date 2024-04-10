@@ -233,11 +233,46 @@ private:
             if (FCString::Strcmp(*ActorClassName, TEXT("BP_Portal_C")) == 0)
                 continue;
             UKismetSystemLibrary::PrintString(GetWorld(), ActorClassName);
+        }
+        // Other Objects
+        // Get the world pointer
+        UWorld* World = GetWorld();
 
-            if (FCString::Strcmp(*ActorClassName, TEXT("Interactable")) == 0)
+        if (World)
+        {
+            // Get the bounding box of the box component in world space
+            FBox BoxBounds = objectDetection->CalcBounds(objectDetection->GetComponentTransform()).GetBox();
+
+            // Query parameters
+            FCollisionQueryParams Params;
+            Params.bTraceComplex = true; // Trace against complex collision (meshes)
+
+            // Array to store hit results
+            TArray<FHitResult> HitResults;
+
+            // Perform the collision query
+            World->SweepMultiByObjectType(HitResults, BoxBounds.GetCenter(), BoxBounds.GetCenter(), FQuat::Identity,
+                FCollisionObjectQueryParams::AllObjects, objectDetection->GetCollisionShape(), Params);
+
+            // Iterate over hit results
+            for (const FHitResult& HitResult : HitResults)
             {
-                TeleportObject(Actor);
+                AActor* HitActor = HitResult.GetActor();
+                if (HitActor && HitActor != GetOwner()) // Exclude the owner actor if necessary
+                {
+                    // Do something with the overlapping actor
+                    FString ActorClassName = HitActor->GetName();
+
+                    if (ActorClassName == "BP_Item_CubeXL_C_0") {
+                        UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Colliding with Interactable"));
+
+                        TeleportObject(HitActor);
+                    }
+                }
             }
+
+            // Debug visualization of the box component
+            DrawDebugBox(World, BoxBounds.GetCenter(), BoxBounds.GetExtent(), FQuat::Identity, FColor::Red, false, -1, 0, 1);
         }
     }
 
@@ -264,8 +299,8 @@ private:
         actor->SetActorRotation(controlRotation);
 
         // Handle Momentum
-        //FVector velocity = actor->GetVelocity();
-        //actor->Velocity = UpdateVelocity(movement->Velocity);
+    /*    FVector velocity = actor->
+        actor-> = UpdateVelocity(movement->Velocity);*/
 
         UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Object"));
     }
