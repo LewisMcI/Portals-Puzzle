@@ -18,7 +18,7 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "GameFramework/Character.h" 
 #include "GameFramework/PawnMovementComponent.h"
-
+#include "GameFramework/CharacterMovementComponent.h" 
 #include "Portal.generated.h"
 
 UCLASS()
@@ -138,6 +138,10 @@ private:
     UPROPERTY(EditAnywhere)
     UBoxComponent* objectDetection;
 
+    double nextTeleportPlayerTime = 0;
+    double nextTeleportObjectTime = 0;
+    double delay = 1;
+
 	/* Visuals */
     void SetClipPlanes() {
         if (otherPortal->portalCamera == nullptr)
@@ -232,7 +236,6 @@ private:
             }
             if (FCString::Strcmp(*ActorClassName, TEXT("BP_Portal_C")) == 0)
                 continue;
-            UKismetSystemLibrary::PrintString(GetWorld(), ActorClassName);
         }
         // Other Objects
         // Get the world pointer
@@ -264,27 +267,27 @@ private:
                     FString ActorClassName = HitActor->GetName();
 
                     if (ActorClassName == "BP_Item_CubeXL_C_0") {
-                        UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Colliding with Interactable"));
-
-                        TeleportObject(HitActor);
+                        FVector point = HitActor->GetActorLocation();
+                        FVector portalLocation = GetActorLocation();
+                        FVector portalNormal = forwardDirection->GetForwardVector();
+                        if (IsPointCrossingPortal(point, portalLocation, portalNormal))
+                            TeleportObject(HitActor);
                     }
                 }
             }
 
             // Debug visualization of the box component
-            DrawDebugBox(World, BoxBounds.GetCenter(), BoxBounds.GetExtent(), FQuat::Identity, FColor::Red, false, -1, 0, 1);
+            //DrawDebugBox(World, BoxBounds.GetCenter(), BoxBounds.GetExtent(), FQuat::Identity, FColor::Red, false, -1, 0, 1);
         }
     }
 
     void TeleportObject(AActor* actor) {
-        APlayerController* playerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-        ACharacter* playerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
-
+        if (UGameplayStatics::GetTimeSeconds(GetWorld()) < nextTeleportObjectTime)
+            return;
         // Location
         FVector newLocation = InvertLocation(actor->GetActorLocation());
 
         // Rotation
-        // Get Camera Manager
         FRotator newRotation = InvertRotation(actor->GetActorRotation());
 
         // Scale
@@ -294,18 +297,22 @@ private:
         FTransform newTransform = UKismetMathLibrary::MakeTransform(newLocation, newRotation, newScale);
         actor->SetActorTransform(newTransform);
 
-        // Control Rotation
-        FRotator controlRotation = InvertRotation(playerController->GetControlRotation());;
-        actor->SetActorRotation(controlRotation);
-
         // Handle Momentum
-    /*    FVector velocity = actor->
-        actor-> = UpdateVelocity(movement->Velocity);*/
+        UPrimitiveComponent* actorPrimitive = actor->GetComponentByClass<UPrimitiveComponent>();
+        if (actorPrimitive)
+        {
+            FVector velocity = actorPrimitive->GetComponentVelocity();
+            actorPrimitive->SetPhysicsLinearVelocity(UpdateVelocity(velocity));
+        }
 
         UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Object"));
+
+        otherPortal->nextTeleportObjectTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
     }
 
     void TeleportCharacter() {
+        if (UGameplayStatics::GetTimeSeconds(GetWorld()) < nextTeleportPlayerTime)
+            return;
         APlayerController* playerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
         ACharacter* playerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
 
@@ -334,6 +341,8 @@ private:
         UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->SetGameCameraCutThisFrame();
 
         UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Character"));
+
+        otherPortal->nextTeleportPlayerTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
     }
 
     FVector UpdateVelocity(FVector velocity) {
@@ -345,6 +354,7 @@ private:
         
         return direction * velocity.Length();
     }
+
     bool IsPointCrossingPortal(FVector point, FVector portalLocation, FVector portalNormal) {
         FVector distance = point - portalLocation;
         double angle = UKismetMathLibrary::Dot_VectorVector(portalNormal, distance);
