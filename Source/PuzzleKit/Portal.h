@@ -266,7 +266,7 @@ private:
                     // Do something with the overlapping actor
                     FString ActorClassName = HitActor->GetName();
 
-                    if (ActorClassName == "BP_Item_CubeXL_C_0") {
+                    if (ActorClassName == "BP_Item_CubeXL_C_0" || ActorClassName == "BP_Item_Cube_C_0") {
                         FVector point = HitActor->GetActorLocation();
                         FVector portalLocation = GetActorLocation();
                         FVector portalNormal = forwardDirection->GetForwardVector();
