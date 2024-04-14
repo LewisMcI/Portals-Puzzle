@@ -28,15 +28,28 @@ class PUZZLEKIT_API APortal : public AActor
 	
 public:	
 	APortal();
-
 protected:
 	virtual void BeginPlay() override;
 
 public:	
 	virtual void Tick(float DeltaTime) override;
 
+
+    bool hidden = false;
+
+    UFUNCTION(BlueprintCallable)
+    void HidePortal() {
+        hidden = true;
+        portalCamera->Deactivate();
+
+    }
+
+    UFUNCTION(BlueprintCallable)
+    void UnHidePortal() {
+        hidden = false;
+        portalCamera->Activate();
+    }
 private:
-    
     /* Portal Setup */
     void Setup() {
         root = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneRoot"));
@@ -69,6 +82,12 @@ private:
         
         // Set the rotation of the arrow component to match the forward vector of the frame mesh
         portalCamera->SetWorldRotation(ForwardVector.Rotation());
+    }
+    FVector lastPos = FVector(9999.9f, 9999.9f, 9999.9f);
+    void CheckIfMoved() {
+        if (lastPos != GetActorLocation()) {
+            BeginVisuals();
+        }
     }
     FVector InvertLocation(FVector lastLocation) {
         // Set Scale
@@ -140,7 +159,7 @@ private:
 
     double nextTeleportPlayerTime = 0;
     double nextTeleportObjectTime = 0;
-    double delay = 1;
+    double delay = .1f;
 
 	/* Visuals */
     void SetClipPlanes() {
@@ -169,7 +188,7 @@ private:
         if ((x == portalRT->SizeX) && (y == portalRT->SizeY)) {
         }
         else {
-            UKismetSystemLibrary::PrintString(GetWorld(), "RESIZING");
+            //UKismetSystemLibrary::PrintString(GetWorld(), "RESIZING");
             int32 truncX = UKismetMathLibrary::FTrunc(viewportSize.X);
             int32 truncY = UKismetMathLibrary::FTrunc(viewportSize.Y);
             UKismetRenderingLibrary::ResizeRenderTarget2D(portalRT, truncX, truncY);
@@ -200,6 +219,8 @@ private:
         FLinearColor colour = UKismetMathLibrary::MakeColor(offset.X, offset.Y, offset.Z, 1.0f);
 
         portalMatInstance->SetVectorParameterValue("OffsetDistance", colour);
+
+        lastPos = GetActorLocation();
     }
     FVector SceneCaptureUpdateLocation() {
         return InvertLocation(UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->GetCameraLocation());
@@ -265,14 +286,15 @@ private:
                 {
                     // Do something with the overlapping actor
                     FString ActorClassName = HitActor->GetName();
-
-                    if (ActorClassName == "BP_Item_CubeXL_C_0" || ActorClassName == "BP_Item_Cube_C_0") {
+                    if (ActorClassName != "BP_Portal_C_1" && ActorClassName != "BP_Portal_C_3" && ActorClassName != "BP_ThirdPersonCharacter_C_0"){
                         FVector point = HitActor->GetActorLocation();
                         FVector portalLocation = GetActorLocation();
                         FVector portalNormal = forwardDirection->GetForwardVector();
+
                         if (IsPointCrossingPortal(point, portalLocation, portalNormal))
                             TeleportObject(HitActor);
                     }
+
                 }
             }
 
@@ -284,7 +306,8 @@ private:
     void TeleportObject(AActor* actor) {
         if (UGameplayStatics::GetTimeSeconds(GetWorld()) < nextTeleportObjectTime)
             return;
-        // Location
+
+        // Location 
         FVector newLocation = InvertLocation(actor->GetActorLocation());
 
         // Rotation
@@ -305,7 +328,7 @@ private:
             actorPrimitive->SetPhysicsLinearVelocity(UpdateVelocity(velocity));
         }
 
-        UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Object"));
+        //UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Object"));
 
         otherPortal->nextTeleportObjectTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
     }
@@ -340,7 +363,7 @@ private:
 
         UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->SetGameCameraCutThisFrame();
 
-        UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Character"));
+        //UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Character"));
 
         otherPortal->nextTeleportPlayerTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
     }
@@ -374,6 +397,7 @@ private:
 
     FVector lastPosition;
     bool lastInFront;
+
     float offsetAmount = -6.0f;
 
     // Recursion
