@@ -180,19 +180,25 @@ private:
     }
     void CheckViewportSize() {
         // Create render target
-        FVector2D viewportSize = UWidgetLayoutLibrary::GetViewportSize(GetWorld());
+        FVector2D viewportSize = FVector2D(1, 1);
 
-        float x; float y;
-        UKismetMathLibrary::BreakVector2D(viewportSize, x, y);
 
-        if ((x == portalRT->SizeX) && (y == portalRT->SizeY)) {
+        if (GEngine && GEngine->GameViewport)
+        {
+            GEngine->GameViewport->GetViewportSize( /*out*/viewportSize);
         }
-        else {
-            //UKismetSystemLibrary::PrintString(GetWorld(), "RESIZING");
-            int32 truncX = UKismetMathLibrary::FTrunc(viewportSize.X);
-            int32 truncY = UKismetMathLibrary::FTrunc(viewportSize.Y);
-            UKismetRenderingLibrary::ResizeRenderTarget2D(portalRT, truncX, truncY);
+
+        if (portalRT != nullptr) {
+            if ((viewportSize.X == portalRT->SizeX) && (viewportSize.Y == portalRT->SizeY)) {
+            }
+            else {
+                //UKismetSystemLibrary::PrintString(GetWorld(), "RESIZING");
+                int32 truncX = UKismetMathLibrary::FTrunc(viewportSize.X);
+                int32 truncY = UKismetMathLibrary::FTrunc(viewportSize.Y);
+                UKismetRenderingLibrary::ResizeRenderTarget2D(portalRT, truncX, truncY);
+            }
         }
+
     }
     void BeginVisuals() {
         // Create New Mat Instance
@@ -206,8 +212,8 @@ private:
         int32 truncX = UKismetMathLibrary::FTrunc(viewportSize.X);
         int32 truncY = UKismetMathLibrary::FTrunc(viewportSize.Y);
 
-        portalRT = UKismetRenderingLibrary::CreateRenderTarget2D(GetWorld(), truncX, truncY);
 
+        portalRT = UKismetRenderingLibrary::CreateRenderTarget2D(GetWorld(), truncX, truncY);
         // Setup Portal Mat
         portalMatInstance->SetTextureParameterValue("Texture", portalRT);
 
@@ -252,8 +258,10 @@ private:
                 FVector point = camMan->GetCameraLocation();
                 FVector portalLocation = GetActorLocation();
                 FVector portalNormal = forwardDirection->GetForwardVector();
-                if (IsPointCrossingPortal(point, portalLocation, portalNormal))
+                if (IsPointCrossingPortal(point, portalLocation, portalNormal)) {
                     TeleportCharacter();
+                    return;
+                }
             }
             if (FCString::Strcmp(*ActorClassName, TEXT("BP_Portal_C")) == 0)
                 continue;
@@ -286,7 +294,7 @@ private:
                 {
                     // Do something with the overlapping actor
                     FString ActorClassName = HitActor->GetName();
-                    if (ActorClassName != "BP_Portal_C_1" && ActorClassName != "BP_Portal_C_3" && ActorClassName != "BP_ThirdPersonCharacter_C_0"){
+                    if (ActorClassName != "BP_Portal_C_1" && ActorClassName != "BP_Portal_C_3" && !ActorClassName.Contains("BP_ThirdPersonCharacter_C")){
                         FVector point = HitActor->GetActorLocation();
                         FVector portalLocation = GetActorLocation();
                         FVector portalNormal = forwardDirection->GetForwardVector();
@@ -331,6 +339,7 @@ private:
         //UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Object"));
 
         otherPortal->nextTeleportObjectTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
+        nextTeleportObjectTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
     }
 
     void TeleportCharacter() {
@@ -366,6 +375,7 @@ private:
         //UKismetSystemLibrary::PrintString(GetWorld(), TEXT("Teleport Character"));
 
         otherPortal->nextTeleportPlayerTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
+        nextTeleportPlayerTime = UGameplayStatics::GetTimeSeconds(GetWorld()) + delay;
     }
 
     FVector UpdateVelocity(FVector velocity) {

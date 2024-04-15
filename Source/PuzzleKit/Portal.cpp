@@ -9,17 +9,25 @@ APortal::APortal()
 
 void APortal::BeginPlay()
 {
-	UKismetSystemLibrary::Delay(GetWorld(), 0.1f, FLatentActionInfo());
 	Super::BeginPlay();
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
-	BeginVisuals();
 }
-
+bool done = false;
+double timeToBegin = 0;
+bool complete = false;
 void APortal::Tick(float DeltaTime)
 {
+	if (!done) {
+		done = true;
+		timeToBegin = UGameplayStatics::GetTimeSeconds(GetWorld()) + 0.01f;
+	}
 	Super::Tick(DeltaTime);
-	
-	if (!hidden)
+	if (done && !complete && (UGameplayStatics::GetTimeSeconds(GetWorld()) > timeToBegin))
+	{
+		BeginVisuals();
+		complete = true;
+	}
+	if (complete && !hidden)
 	{
 		//SceneCaptureUpdateRecursive(FVector::ZeroVector, FRotator::ZeroRotator);
 		CheckIfMoved();
